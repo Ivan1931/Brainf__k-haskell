@@ -32,7 +32,7 @@ dec = (-) 1
 modifyMemory :: (Int -> Int) -> Context ()
 modifyMemory f =
     do reg <- get
-       env <- lift $ get
+       env <- lift get
        if reg `M.member` env
          then lift $ modify (M.adjust f reg)
          else lift $ modify (M.insert reg (f 0))
@@ -45,22 +45,22 @@ evalBf (Dec:xs) = modify dec >> evalBf xs
 evalBf (Add:xs) = modifyMemory inc >> evalBf xs
 evalBf (Sub:xs) = modifyMemory dec >> evalBf xs
 evalBf (Out:xs) =
-    do env <- lift $ get
+    do env <- lift get
        reg <- get
        case reg `M.lookup` env of
          Nothing -> liftIO $ print "0"
          Just a  -> liftIO $ print . show $ a
        evalBf xs
 evalBf (In:xs) =
-    do n <- liftIO $ getChar
+    do n <- liftIO getChar
        reg <- get
-       env <- lift $ get
+       env <- lift get
        if reg `M.member` env
         then lift $ modify (M.adjust (\_ -> ord n) reg)
         else lift $ modify (M.insert reg (ord n))
        evalBf xs
-evalBf loop@((Loop xs):xss) =
-    do env <- lift $ get
+evalBf loop@(Loop xs : xss) =
+    do env <- lift get
        reg <- get
        case reg `M.lookup` env of
          Nothing -> evalBf xss -- Move to next instruction after ]
@@ -92,7 +92,7 @@ loopParser = do char '['
                 return $ Loop commands
 
 parseBf :: String -> Either ParseError [Command]
-parseBf input = parse commandParser "Brainf**k ->" input
+parseBf = parse commandParser "Brainf**k ->"
 
 brainf__k :: String -> IO ()
 brainf__k str = case parseBf str of
