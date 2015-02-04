@@ -3,6 +3,7 @@ import Control.Monad.State
 import Control.Monad.Identity
 import Data.Char(ord)
 import qualified Data.Map as M
+import System.Environment
 
 --
 --Inc - increments the program counter to the cell to the right
@@ -57,8 +58,10 @@ evalBf (Out:xs) = do env <- lift $ get
 
 evalBf (In:xs) = do n <- liftIO $ getChar
                     reg <- get
-                    lift $ modify (M.adjust (\ _ -> ord n) reg)
-                     env <- lift
+                    env <- lift $ get
+                    if reg `M.member` env
+                     then lift $ modify (M.adjust (\_ -> ord n) reg)
+                     else lift $ modify (M.insert reg (ord n))
                     evalBf xs
 
 evalBf loop@((Loop xs):xss) =
@@ -84,8 +87,6 @@ opParser = do c <- oneOf "><+-.,"
                   '.' -> Out
                   ',' -> In
 
-whiteSpace = oneOf "\n\0\t"
-
 commandParser :: Parser [Command]
 commandParser = many (try loopParser <|> opParser)
 
@@ -102,3 +103,8 @@ brainf__k :: String -> IO ()
 brainf__k str = case parseBf str of
                   Left err -> putStrLn ("Error: " ++ show err)
                   Right bf -> runBf bf
+
+main :: IO ()
+main = do args <- getArgs
+          str <- readFile (head args)
+          brainf__k str
