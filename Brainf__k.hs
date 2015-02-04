@@ -29,41 +29,36 @@ inc = (+1)
 dec :: (Num a) => a -> a
 dec = (-) 1
 
+modifyMemory :: (Int -> Int) -> Context ()
+modifyMemory f =
+    do reg <- get
+       env <- lift $ get
+       if reg `M.member` env
+         then lift $ modify (M.adjust f reg)
+         else lift $ modify (M.insert reg (f 0))
+       return ()
+
 evalBf :: [Command] -> Context ()
 evalBf [] = return ()
-evalBf (Inc:xs) = do modify inc
-                     evalBf xs
-evalBf (Dec:xs) = do modify dec
-                     evalBf xs
-evalBf (Add:xs) = do reg <- get
-                     env <- lift $ get
-                     if reg `M.member` env
-                       then lift $ modify (M.adjust inc reg)
-                       else lift $ modify (M.insert reg 1)
-                     evalBf xs
-
-evalBf (Sub:xs) = do reg <- get
-                     env <- lift $ get
-                     if reg `M.member` env
-                       then lift $ modify (M.adjust dec reg)
-                       else lift $ modify (M.insert reg 1)
-                     evalBf xs
-
-evalBf (Out:xs) = do env <- lift $ get
-                     reg <- get
-                     case reg `M.lookup` env of
-                       Nothing -> liftIO $ print "0"
-                       Just a  -> liftIO $ print . show $ a
-                     evalBf xs
-
-evalBf (In:xs) = do n <- liftIO $ getChar
-                    reg <- get
-                    env <- lift $ get
-                    if reg `M.member` env
-                     then lift $ modify (M.adjust (\_ -> ord n) reg)
-                     else lift $ modify (M.insert reg (ord n))
-                    evalBf xs
-
+evalBf (Inc:xs) = modify inc >> evalBf xs
+evalBf (Dec:xs) = modify dec >> evalBf xs
+evalBf (Add:xs) = modifyMemory inc >> evalBf xs
+evalBf (Sub:xs) = modifyMemory dec >> evalBf xs
+evalBf (Out:xs) =
+    do env <- lift $ get
+       reg <- get
+       case reg `M.lookup` env of
+         Nothing -> liftIO $ print "0"
+         Just a  -> liftIO $ print . show $ a
+       evalBf xs
+evalBf (In:xs) =
+    do n <- liftIO $ getChar
+       reg <- get
+       env <- lift $ get
+       if reg `M.member` env
+        then lift $ modify (M.adjust (\_ -> ord n) reg)
+        else lift $ modify (M.insert reg (ord n))
+       evalBf xs
 evalBf loop@((Loop xs):xss) =
     do env <- lift $ get
        reg <- get
